@@ -1,0 +1,12 @@
+codigo para prender el broker mosquitto local
+
+#enciendo el broker
+sudo systemctl start mosquitto 
+
+#consulto su status
+
+# Suscribirse al topic para ver los mensajes
+mosquitto_sub -h localhost -t "test/topic" -v
+
+#apago el server
+sudo systemctl stop mosquitto
