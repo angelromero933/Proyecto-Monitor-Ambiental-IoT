@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "SMA",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "board-bmp180",
+      "id": "bmp1",
+      "top": -120,
+      "left": 120,
+      "rotate": 90,
+      "attrs": {
+        "temperature": "25",
+        "pressure": "101325"
+      }
+    }
+  ],
+  "connections": [
+    [ "bmp1:3.3V", "esp:3V3", "red", [] ],
+    [ "bmp1:GND", "esp:GND.1", "black", [] ],
+    [ "bmp1:SDA", "esp:21", "green", [] ],
+    [ "bmp1:SCL", "esp:22", "green", [] ]
+  ],
+  "dependencies": {}
+}
