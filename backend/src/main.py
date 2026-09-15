@@ -26,6 +26,7 @@ MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensores/esp32/datos")
 
 app = FastAPI(title="IoT Backend - HiveMQ + Supabase")
 
+#decorador raiz, y endpoint x msj por cada ingreso a la direccion(host)
 @app.get("/")
 def root():
     return {"message": "IoT Backend funcionando"}
@@ -43,6 +44,7 @@ def get_datos(limit: int = 10):
         return {"error": str(e)}
 
 
+#por cada msj recibido lo sube a supabase
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
@@ -65,7 +67,7 @@ def on_message(client, userdata, msg):
             "creator": creator,
         }
         
-        # 🔹 INSERTAR EN SUPABASE
+        # Inserta en Supabase -> Lecturas
         result = supabase.table("Lecturas").insert(data).execute()
         print(f"Datos guardados en Supabase (ID: {result.data[0]['id']})")
         print(f"Datos guardados: {data}")
@@ -73,7 +75,7 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Error procesando mensaje: {e}")
 
-
+#incio servicio mqtt y escucho al broker hivemq
 def init_mqtt():
     client = mqtt.Client()
     client.username_pw_set(MQTT_USER, MQTT_PASS)
