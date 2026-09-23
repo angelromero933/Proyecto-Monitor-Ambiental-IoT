@@ -10,6 +10,7 @@ static const char* const mqttServer = "6a27f69ee3d5461f8991096bdfcaaf3c.s1.eu.hi
 static const int mqttPort = 8883;
 static const char* const mqtt_user = "adminhive";
 static const char* const mqtt_password = "adminhive";
+static const char* const mqtt_topic = "sensores/esp32/datos";
 
 #define DHT_PIN 15            // DHT22 GPIO15
 
@@ -27,16 +28,26 @@ const int UMBRAL_ALERTA = 800;
 #define SD_MISO_PIN 19        // MISO GPIO19 (SD card) SPI data input      (DO en wokwi)
 #define SD_SCK_PIN 18         // SCK GPIO18 (SD card) SPI clock
 
-#define BMP_SCK  (13)
-#define BMP_MISO (12)
-#define BMP_MOSI (11)
-#define BMP_CS   (10)
+#define BMP_SCK  13
+#define BMP_MISO 12
+#define BMP_MOSI 11
+#define BMP_CS   10
 
-#define BUZZER_PIN 13           
-#define LED_ROJO_PIN 12 
+#define BUZZER_PIN 16           
+#define LED_ROJO_PIN 17 
 #define LED_VERDE_PIN 27
 #define LED_AZUL_PIN 26
-#define LED_AMARILLO_PIN 14
+#define LED_AMARILLO_PIN 25
 
+void setPines(){
+  pinMode(LED_ROJO_PIN, OUTPUT);
+  pinMode(LED_VERDE_PIN, OUTPUT);
+  pinMode(LED_AMARILLO_PIN, OUTPUT);
+  pinMode(LED_AZUL_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+    
+  pinMode(GAS_PIN, INPUT);
+  pinMode(MQ135_DOUT_PIN, INPUT);
+}
 
 #endif
