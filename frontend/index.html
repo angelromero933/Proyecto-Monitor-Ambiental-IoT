@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoreo Ambiental</title>
+
+    <!-- Carga de Chart.js desde un CDN alternativo estable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+    <link rel="stylesheet" href="style.css">   
+    <script src="script.js"></script>
+</head>
+<body>
+
+    <h1>Dashboard de Monitoreo Ambiental</h1>
+
+    <div class="controls">
+        <label for="tipoGrafico">Vista Tiempo Real: </label>
+        <select id="tipoGrafico">
+            <option value="line">Línea Temporal</option>
+            <option value="bar">Barras Comparativas</option>
+        </select>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>Evolución en Tiempo Real</h3>
+            <div class="canvas-container">
+                <canvas id="graficaTiempoReal"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Distribución de Lecturas (Dona)</h3>
+            <div class="canvas-container">
+                <canvas id="graficaDona"></canvas>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

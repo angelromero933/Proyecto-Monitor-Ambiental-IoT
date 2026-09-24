@@ -1,0 +1,52 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #1e1e2f;
+    color: #ffffff;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    color: #4bc0c0;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: #27293d;
+    color: #fff;
+    border: 1px solid #4bc0c0;
+}
+
+.dashboard-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background-color: #27293d;
+    padding: 20px;
+    border-radius: 12px;
+    width: 45%;
+    min-width: 350px;
+    box-sizing: border-box;
+}
+
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
