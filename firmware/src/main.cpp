@@ -7,7 +7,21 @@
 #include "config.h"
 #include "sensores.h"
 
-Sensores *sensores;
+unsigned long lastMsg = 0;
+const unsigned long INTERVALO = 30000;
+const unsigned long TIEMPO_AVISO  = 3000;  //leds tiempo de encendido cual alerta
+
+unsigned long ledRojoHasta = 0;    // Timestamp de apagado
+unsigned long ledAmarHasta = 0;
+unsigned long ledAzulHasta = 0;
+unsigned long buzzerHasta  = 0;
+
+bool ledRojoOn = false;
+bool ledAmarOn = false;
+bool ledAzulOn = false;
+bool buzzerOn  = false;
+
+Sensores *sensores = nullptr;
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
@@ -18,13 +32,28 @@ void reconectarMQTT();
 void callback(char* topic, byte* payload, unsigned int length);
 void leerMensajesGuardados();
 void guardarEnSD(const char* datos);
+void controlarLEDs();
 
 void setup() {    
   Serial.begin(115200);
   delay(1000);
+  
+  pinMode(LED_ROJO_PIN, OUTPUT);
+  pinMode(LED_VERDE_PIN, OUTPUT);
+  pinMode(LED_AMARILLO_PIN, OUTPUT);
+  pinMode(LED_AZUL_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+    
+  pinMode(GAS_PIN, INPUT);
+  pinMode(MQ135_DOUT_PIN, INPUT);
+  
   Serial.println("\n=== SISTEMA DE MONITOREO AMBIENTAL ===\n");
     
   sensores = new Sensores();
+  if(sensores == nullptr){
+    Serial.println("Error al crear objeto Sensores");
+    ESP.restart();
+  }
   sensores->inicializarSensores();
     
   conectarWiFi();
@@ -32,6 +61,9 @@ void setup() {
   espClient.setInsecure(); 
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
+  client.setBufferSize(512);
+  client.setKeepAlive(60);
+  client.setSocketTimeout(30);
      
   reconectarMQTT();
     
@@ -50,42 +82,43 @@ void loop() {
     reconectarMQTT();
   }
   client.loop();
-        
-  sensores->leerSensores();
-        
-  digitalWrite(LED_ROJO_PIN,      sensores->obtenerEstadoMQ()  ? HIGH : LOW);
-  digitalWrite(LED_AZUL_PIN,      sensores->obtenerEstadoDHT() ? HIGH : LOW);
-  digitalWrite(LED_AMARILLO_PIN,  sensores->obtenerEstadoBMP() ? HIGH : LOW);
   digitalWrite(LED_VERDE_PIN, HIGH);
+  unsigned long ahora = millis();
+  if (ahora - lastMsg >= INTERVALO) {
+    lastMsg = ahora;
+    if (sensores == nullptr)
+      return;
+
+    sensores->leerSensores();
+
+    controlarLEDs();
     
-  digitalWrite(BUZZER_PIN, (sensores->obtenerEstadoMQ() or sensores->obtenerEstadoDHT() or sensores->obtenerEstadoBMP()) ? HIGH : LOW);
-        
-  String creator = "86d8ce35-705a-4413-9791-9192e5470a76";
 
-  StaticJsonDocument<256> doc;
-  doc["Temperatura"] = sensores->obtenerTemperatura();
-  doc["Humedad"] = sensores->obtenerHumedad();
-  doc["Presion"] = sensores->obtenerPresion();
-  doc["Fecha"] = sensores->obtenerReloj();
-  doc["Gas-Ppm"] = sensores->obtenerGas();
-  doc["creator"] = creator;
+    String creator = "86d8ce35-705a-4413-9791-9192e5470a76";
 
-  char buffer[256];
-  serializeJson(doc, buffer);
+    StaticJsonDocument<256> doc;
+    doc["Temperatura"] = sensores->obtenerTemperatura();
+    doc["Humedad"] = sensores->obtenerHumedad();
+    doc["Presion"] = sensores->obtenerPresion();
+    doc["Fecha"] = sensores->obtenerReloj();
+    doc["Gas-Ppm"] = sensores->obtenerGas();
+    doc["creator"] = creator;
 
-  if (client.publish(mqtt_topic, buffer)) {
-    Serial.print("Publicado: ");
-    Serial.println(buffer);
+    char buffer[256];
+    serializeJson(doc, buffer);
 
-    if (datosGuardar){
-      leerMensajesGuardados();
+    if (client.publish(mqtt_topic, buffer)) {
+      Serial.print("Publicado: ");
+      Serial.println(buffer);
+
+      if (datosGuardar){
+        leerMensajesGuardados();
+      }
+    }else {
+      Serial.println("Error al publicar, guardando en SD...");
+      guardarEnSD(buffer);
     }
-  }else {
-    Serial.println("Error al publicar, guardando en SD...");
-    guardarEnSD(buffer);
   }
-
-  delay(5000);  // Esperar 5 seg entre lecturas -> metrica por 5 min a fututor 50000 
 }
 
 void conectarWiFi() {
@@ -127,6 +160,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void guardarEnSD(const char* datos) {
+  if (!sensores->obtenerEstadoSD()) return;
   File file = SD.open(filename, FILE_APPEND);
   if (file) {
     file.println(datos);
@@ -178,5 +212,68 @@ void leerMensajesGuardados() {
     }else{
       Serial.println("Error al borrar archivo SD");
     }
+  }
+}
+
+void controlarLEDs() {
+  unsigned long ahora = millis();
+
+  if (sensores->obtenerEstadoMQ()){
+    ledRojoHasta = ahora + TIEMPO_AVISO;
+    if (!ledRojoOn){
+      digitalWrite(LED_ROJO_PIN, HIGH);
+      ledRojoOn = true;
+      Serial.println("LED Rojo encendido (gas)");
+    }
+  }
+  
+  if (ledRojoOn && ahora >= ledRojoHasta){
+    digitalWrite(LED_ROJO_PIN, LOW);
+    ledRojoOn = false;
+    Serial.println("LED Rojo apagado");
+  }
+
+  if (sensores->obtenerEstadoDHT()){
+    ledAmarHasta = ahora + TIEMPO_AVISO;
+    if (!ledAmarOn){
+      digitalWrite(LED_AMARILLO_PIN, HIGH);
+      ledAmarOn = true;
+      Serial.println("LED Amarillo encendido (DHT)");
+    }
+  }
+  if (ledAmarOn && ahora >= ledAmarHasta){
+    digitalWrite(LED_AMARILLO_PIN, LOW);
+    ledAmarOn = false;
+    Serial.println("LED Amarillo apagado");
+  }
+
+  if (sensores->obtenerEstadoBMP()){
+    ledAzulHasta = ahora + TIEMPO_AVISO;
+    if (!ledAzulOn){
+      digitalWrite(LED_AZUL_PIN, HIGH);
+      ledAzulOn = true;
+      Serial.println("LED Azul encendido (BMP)");
+    }
+  }
+  if (ledAzulOn && ahora >= ledAzulHasta){
+    digitalWrite(LED_AZUL_PIN, LOW);
+    ledAzulOn = false;
+    Serial.println("LED Azul apagado");
+  }
+
+  bool alarma = (sensores->obtenerEstadoMQ() or sensores->obtenerEstadoDHT() or sensores->obtenerEstadoBMP());
+
+  if (alarma){
+    buzzerHasta = ahora + TIEMPO_AVISO;
+    if (!buzzerOn){
+      digitalWrite(BUZZER_PIN, HIGH);
+      buzzerOn = true;
+      Serial.println("Buzzer encendido");
+    }
+  }
+  if (buzzerOn && ahora >= buzzerHasta){
+    digitalWrite(BUZZER_PIN, LOW);
+    buzzerOn = false;
+    Serial.println("Buzzer apagao");
   }
 }

@@ -2,8 +2,8 @@
 #define CONFIG_H
 const char* filename = "/datos.txt";
 //wifi
-static const char* const ssid = "Wokwi-GUEST";
-static const char* const password = "";
+static const char* const ssid = "Fibertel WiFi014 2.4GHz";
+static const char* const password = "01420822666";
 
 //mqtt hivemq
 static const char* const mqttServer = "6a27f69ee3d5461f8991096bdfcaaf3c.s1.eu.hivemq.cloud";
@@ -39,15 +39,5 @@ const int UMBRAL_ALERTA = 800;
 #define LED_AZUL_PIN 26
 #define LED_AMARILLO_PIN 25
 
-void setPines(){
-  pinMode(LED_ROJO_PIN, OUTPUT);
-  pinMode(LED_VERDE_PIN, OUTPUT);
-  pinMode(LED_AMARILLO_PIN, OUTPUT);
-  pinMode(LED_AZUL_PIN, OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-    
-  pinMode(GAS_PIN, INPUT);
-  pinMode(MQ135_DOUT_PIN, INPUT);
-}
 
 #endif
