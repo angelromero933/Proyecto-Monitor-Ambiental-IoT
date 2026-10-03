@@ -2,11 +2,12 @@ import os
 import json
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import paho.mqtt.client as mqtt
 from supabase import create_client
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# cargar .env
+# cargar .env   //archivo de credenciales
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -26,25 +27,54 @@ MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensores/esp32/datos")
 
 app = FastAPI(title="IoT Backend - HiveMQ + Supabase")
 
+origins = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",  # ambas direcciones del frontend
+]
+# Activo CORS para permitir que el frontend haga peticiones al backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,          # Permite las URLs
+    allow_credentials=True,
+    allow_methods=["*"],            # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],            
+)
+
 #decorador raiz, y endpoint x msj por cada ingreso a la direccion(host)
 @app.get("/")
 def root():
     return {"message": "IoT Backend funcionando"}
 
-@app.get("/api/datos")
+@app.get("/api/datos")          #Obtener los 10 registros de la BD(segun los que haya, podrian ser de 5min o 10 dias)
 def get_datos(limit: int = 10):
     try:
-        result = supabase.table("Lecturas") \
-            .select("*") \
-            .order("id", desc=True) \
-            .limit(limit) \
+        result = (
+            supabase.table("Lecturas") 
+            .select("*") 
+            .order("id", desc=True) 
+            .limit(limit) 
             .execute()
+        )
         return result.data
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/api/datos/resumen-12hs")     #obtener los registros de las ultimas 12 horas
+def get_resumen():
+    hace_12_horas = (datetime.utcnow() - timedelta(hours=12)).isoformat()          #hours podria ir cambiando
+    try:
+        result = (
+            supabase.table("Lecturas") 
+            .select("*") 
+            .order("id", desc=True) 
+            .gt("Fecha", hace_12_horas)
+            .execute()
+        )
+        return result.data
+    except Exception as e:
+        return {"error": str(e)}
 
-#por cada msj recibido lo sube a supabase
+#por cada msj recibido desde el mqtt, lo sube a supabase
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
