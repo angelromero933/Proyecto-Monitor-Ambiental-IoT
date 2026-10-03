@@ -7,19 +7,13 @@
 #include "config.h"
 #include "sensores.h"
 
+// Variables globales para Enviar Json
 unsigned long lastMsg = 0;
 const unsigned long INTERVALO = 30000;
-const unsigned long TIEMPO_AVISO  = 3000;  //leds tiempo de encendido cual alerta
 
-unsigned long ledRojoHasta = 0;    // Timestamp de apagado
-unsigned long ledAmarHasta = 0;
-unsigned long ledAzulHasta = 0;
-unsigned long buzzerHasta  = 0;
-
-bool ledRojoOn = false;
-bool ledAmarOn = false;
-bool ledAzulOn = false;
-bool buzzerOn  = false;
+//Variables globales para leer sensoresy controlar leds
+const unsigned long INTERVALO_LECTURA = 2000;
+unsigned long lastRead = 0;
 
 Sensores *sensores = nullptr;
 WiFiClientSecure espClient;
@@ -38,42 +32,27 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   
-  pinMode(LED_ROJO_PIN, OUTPUT);
-  pinMode(LED_VERDE_PIN, OUTPUT);
-  pinMode(LED_AMARILLO_PIN, OUTPUT);
-  pinMode(LED_AZUL_PIN, OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-    
-  pinMode(GAS_PIN, INPUT);
-  pinMode(MQ135_DOUT_PIN, INPUT);
-  
   Serial.println("\n=== SISTEMA DE MONITOREO AMBIENTAL ===\n");
     
+  conectarWiFi();
+
   sensores = new Sensores();
   if(sensores == nullptr){
     Serial.println("Error al crear objeto Sensores");
     ESP.restart();
   }
   sensores->inicializarSensores();
-    
-  conectarWiFi();
    
   espClient.setInsecure(); 
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callback);
-  client.setBufferSize(512);
-  client.setKeepAlive(60);
+  client.setBufferSize(512);                          //amplio el tamaño para enviar el json + los paquetes mqtt
+  client.setKeepAlive(60);                            //Mantengo la conexion por mas tiempo, ya que se desconecta del broker si mo hay act.
   client.setSocketTimeout(30);
      
   reconectarMQTT();
     
-  if (!SD.begin(SD_CS_PIN)) {
-      Serial.println("Error al inicializar SD (seguirá sin backup)");
-  } else {
-    Serial.println("SD inicializada");
-  }
-    
-  Serial.println("\nSistema listo. Monitoreando...\n");
+  Serial.println("\nSistema listo. Monitoreando ...\n");
   delay(3000);
 }
 
@@ -82,27 +61,29 @@ void loop() {
     reconectarMQTT();
   }
   client.loop();
-  digitalWrite(LED_VERDE_PIN, HIGH);
+
+  if (sensores == nullptr) return;
+  digitalWrite(LED_AZUL_PIN, HIGH);
   unsigned long ahora = millis();
+
+  // Lectura + semaforo cada 2 seg
+  if (ahora - lastRead >= INTERVALO_LECTURA) {
+    lastRead = ahora;
+    sensores->leerSensores();
+    controlarLEDs();
+  }
+
+  // Publicación cada 30 seg
   if (ahora - lastMsg >= INTERVALO) {
     lastMsg = ahora;
-    if (sensores == nullptr)
-      return;
-
-    sensores->leerSensores();
-
-    controlarLEDs();
-    
-
-    String creator = "86d8ce35-705a-4413-9791-9192e5470a76";
 
     StaticJsonDocument<256> doc;
-    doc["Temperatura"] = sensores->obtenerTemperatura();
-    doc["Humedad"] = sensores->obtenerHumedad();
-    doc["Presion"] = sensores->obtenerPresion();
-    doc["Fecha"] = sensores->obtenerReloj();
-    doc["Gas-Ppm"] = sensores->obtenerGas();
-    doc["creator"] = creator;
+    doc["Temperatura"] = serialized(String(sensores->obtenerTemperatura(), 1));
+    doc["Humedad"]     = serialized(String(sensores->obtenerHumedad(), 1));
+    doc["Presion"]     = serialized(String(sensores->obtenerPresion(), 2));
+    doc["Fecha"]       = sensores->obtenerReloj();
+    doc["Gas-Ppm"]     = sensores->obtenerGas();
+    doc["creator"]     = creator;
 
     char buffer[256];
     serializeJson(doc, buffer);
@@ -110,11 +91,10 @@ void loop() {
     if (client.publish(mqtt_topic, buffer)) {
       Serial.print("Publicado: ");
       Serial.println(buffer);
-
-      if (datosGuardar){
+      if (datosGuardar) {
         leerMensajesGuardados();
       }
-    }else {
+    } else {
       Serial.println("Error al publicar, guardando en SD...");
       guardarEnSD(buffer);
     }
@@ -165,6 +145,7 @@ void guardarEnSD(const char* datos) {
   if (file) {
     file.println(datos);
     file.close();
+    datosGuardar = true;
     Serial.println("Datos guardados en SD");
   }else {
     Serial.println("Error al abrir archivo SD");
@@ -176,6 +157,7 @@ void leerMensajesGuardados() {
 
   if (!file){
     Serial.println("No hay archivo en SD");
+    datosGuardar = false;
     return;
   }
 
@@ -209,6 +191,7 @@ void leerMensajesGuardados() {
   if (enviados > 0){
     if (SD.remove(filename)){
       Serial.println(String(enviados) + " datos enviados. SD vaciada.");
+      datosGuardar = false;
     }else{
       Serial.println("Error al borrar archivo SD");
     }
@@ -216,64 +199,10 @@ void leerMensajesGuardados() {
 }
 
 void controlarLEDs() {
-  unsigned long ahora = millis();
+  Nivel n = sensores->nivelGlobal();
 
-  if (sensores->obtenerEstadoMQ()){
-    ledRojoHasta = ahora + TIEMPO_AVISO;
-    if (!ledRojoOn){
-      digitalWrite(LED_ROJO_PIN, HIGH);
-      ledRojoOn = true;
-      Serial.println("LED Rojo encendido (gas)");
-    }
-  }
-  
-  if (ledRojoOn && ahora >= ledRojoHasta){
-    digitalWrite(LED_ROJO_PIN, LOW);
-    ledRojoOn = false;
-    Serial.println("LED Rojo apagado");
-  }
-
-  if (sensores->obtenerEstadoDHT()){
-    ledAmarHasta = ahora + TIEMPO_AVISO;
-    if (!ledAmarOn){
-      digitalWrite(LED_AMARILLO_PIN, HIGH);
-      ledAmarOn = true;
-      Serial.println("LED Amarillo encendido (DHT)");
-    }
-  }
-  if (ledAmarOn && ahora >= ledAmarHasta){
-    digitalWrite(LED_AMARILLO_PIN, LOW);
-    ledAmarOn = false;
-    Serial.println("LED Amarillo apagado");
-  }
-
-  if (sensores->obtenerEstadoBMP()){
-    ledAzulHasta = ahora + TIEMPO_AVISO;
-    if (!ledAzulOn){
-      digitalWrite(LED_AZUL_PIN, HIGH);
-      ledAzulOn = true;
-      Serial.println("LED Azul encendido (BMP)");
-    }
-  }
-  if (ledAzulOn && ahora >= ledAzulHasta){
-    digitalWrite(LED_AZUL_PIN, LOW);
-    ledAzulOn = false;
-    Serial.println("LED Azul apagado");
-  }
-
-  bool alarma = (sensores->obtenerEstadoMQ() or sensores->obtenerEstadoDHT() or sensores->obtenerEstadoBMP());
-
-  if (alarma){
-    buzzerHasta = ahora + TIEMPO_AVISO;
-    if (!buzzerOn){
-      digitalWrite(BUZZER_PIN, HIGH);
-      buzzerOn = true;
-      Serial.println("Buzzer encendido");
-    }
-  }
-  if (buzzerOn && ahora >= buzzerHasta){
-    digitalWrite(BUZZER_PIN, LOW);
-    buzzerOn = false;
-    Serial.println("Buzzer apagao");
-  }
+  digitalWrite(LED_VERDE_PIN,    n == Nivel::NORMAL);
+  digitalWrite(LED_AMARILLO_PIN, n == Nivel::ADVERTENCIA);
+  digitalWrite(LED_ROJO_PIN,     n == Nivel::PELIGRO);
+  digitalWrite(BUZZER_PIN,       n == Nivel::PELIGRO);
 }

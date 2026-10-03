@@ -1,6 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
-const char* filename = "/datos.txt";
+
+const char* filename = "/datos.txt";    //ubicacion de backup sd card
 //wifi
 static const char* const ssid = "Fibertel WiFi014 2.4GHz";
 static const char* const password = "01420822666";
@@ -12,13 +13,15 @@ static const char* const mqtt_user = "adminhive";
 static const char* const mqtt_password = "adminhive";
 static const char* const mqtt_topic = "sensores/esp32/datos";
 
+String creator = "86d8ce35-705a-4413-9791-9192e5470a76"; //tipo credencial para q SP acepte la entrada
+
 #define DHT_PIN 15            // DHT22 GPIO15
 
 #define GAS_PIN 34            // ADC MQ-135(solo entrada) GPIO34
 #define MQ135_DOUT_PIN 4      // DOUT a GPIO4 para alarma digital(HIGH o LOW) es digital, solo indica si hay gas o no, no da valor de ppm 
 
 const int UMBRAL_ADVERTENCIA = 250; 
-const int UMBRAL_ALERTA = 800;
+const int UMBRAL_ALERTA = 600;
 
 #define SDA_PIN 21            // SDA GPIO21 (i2c)
 #define SCL_PIN 22            // SCL GPIO22 (i2c)
@@ -34,10 +37,9 @@ const int UMBRAL_ALERTA = 800;
 #define BMP_CS   10
 
 #define BUZZER_PIN 16           
-#define LED_ROJO_PIN 17 
+#define LED_ROJO_PIN 14 
 #define LED_VERDE_PIN 27
 #define LED_AZUL_PIN 26
 #define LED_AMARILLO_PIN 25
-
 
 #endif
