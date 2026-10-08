@@ -3,8 +3,8 @@
 
 const char* filename = "/datos.txt";    //ubicacion de backup sd card
 //wifi
-static const char* const ssid = "Fibertel WiFi014 2.4GHz";
-static const char* const password = "01420822666";
+static const char* const ssid = "WIFI";
+static const char* const password = "";
 
 //mqtt hivemq
 static const char* const mqttServer = "6a27f69ee3d5461f8991096bdfcaaf3c.s1.eu.hivemq.cloud";
