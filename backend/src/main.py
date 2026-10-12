@@ -58,6 +58,20 @@ def get_datos(limit: int = 10):
         return result.data
     except Exception as e:
         return {"error": str(e)}
+        
+@app.get("/api/datos/ultima")          #Obtener los 10 registros de la BD(segun los que haya, podrian ser de 5min o 10 dias)
+def get_ultima():
+    try:
+        result = (
+            supabase.table("Lecturas") 
+            .select("*") 
+            .order("id", desc=True) 
+            .limit(1) 
+            .execute()
+        )
+        return result.data
+    except Exception as e:
+        return {"error, no se logro obtener la ultima lectura de la BD": str(e)}
 
 @app.get("/api/datos/resumen-12hs")     #obtener los registros de las ultimas 12 horas
 def get_resumen():
