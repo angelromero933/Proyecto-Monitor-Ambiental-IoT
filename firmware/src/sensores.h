@@ -19,9 +19,6 @@ public:
         presion = 0.0;
         valorAnalogico = 0.0;
 
-        mq = false;
-        dht = false;
-        bmp_estado = false;
         encendido = true;
         estadoDigital = false;
         estadoRtc = false;
@@ -76,101 +73,80 @@ public:
         }
     }
     void leerSensores(){
-        humedad = round(dht22.readHumidity() * 10.0) / 10.0;  // Guarda con 1 decimal
-        temperatura = round(dht22.readTemperature() * 10.0) / 10.0;  // Guarda con 1 decimal
+        float t_raw = dht22.readTemperature();
+        float h_raw = dht22.readHumidity();
+
+        if (isnan(t_raw) || isnan(h_raw)) {
+            temperatura = NAN;
+            humedad = NAN;
+        } else {
+            temperatura = round(t_raw * 10.0) / 10.0;  // Guarda con 1 decimal
+            humedad = int(h_raw);
+        }
         valorAnalogico = round(analogRead(GAS_PIN));
         estadoDigital = digitalRead(MQ135_DOUT_PIN);
-
-        presion = round(bmp.readPressure() ) / 100.0; // Convertir a hPa
-
-        /*alertaGas();
-        alertaDHT();
-        alertaBMP();*/
+        
+        float p_raw = bmp.readPressure();
+        if (p_raw <= 0 || isnan(p_raw)) {
+            presion = NAN;
+        } else {
+            presion = round(p_raw) / 100.0; // Convertir a hPa
+        }
     }
     
-    float obtenerTemperatura(){     return temperatura; }
-    float obtenerHumedad(){         return humedad;   }
-    float obtenerPresion(){         
-        if (isnan(presion)) return 0;
-
-        return presion;   
-    }
-    float obtenerGas(){             return valorAnalogico;  }
+    float obtenerTemperatura(){     return temperatura; }   
+    float obtenerHumedad(){         return humedad;  }
+    float obtenerPresion(){         return presion;     }
+    float obtenerGas(){             return valorAnalogico;     }
     bool obtenerEstadoDigital(){    return estadoDigital;   }
+    bool obtenerEstadoSD(){ return estadoSd; }
     String obtenerReloj(){
         if (!estadoRtc) return "1970-01-01T00:00:00";
+
         DateTime ahora = rtc.now();
         if (ahora.year() < 2020) return "1970-01-01T00:00:00";
-        return ahora.timestamp(DateTime::TIMESTAMP_FULL);
-        
-    }
-
-    bool obtenerEstadoMQ(){         return mq; }
-    bool obtenerEstadoDHT(){        return dht;    }
-    bool obtenerEstadoBMP(){        return bmp_estado; }
-    bool obtenerEstadoSD(){         return estadoSd; }
-
-    void alertaGas(){
-        if (valorAnalogico >= UMBRAL_ALERTA || estadoDigital == LOW) {
-            Serial.println("ESTADO: Nivel::PELIGRO - Gas o Contaminación Alta");
-            mq = true;
-        } else if (valorAnalogico >= UMBRAL_ADVERTENCIA && valorAnalogico < UMBRAL_ALERTA) {
-            Serial.println("ESTADO: ADVERTENCIA - Calidad de Aire Moderada / Ventilar");
-            mq = true;
-        } else {
-            Serial.println("ESTADO: OK - Aire Limpio");
-            mq = false;
-        }
-    }
-
-    void alertaDHT(){
-        if(temperatura > 30 and temperatura < 10){
-            Serial.println("Temperatura en Rango de Alerta");
-            dht = true;
-        }
-        if(humedad > 70 and humedad < 30){
-            Serial.println("Humedad en Rango de Alerta");
-            dht = true;
-        }
-    }
-
-    void alertaBMP(){
-        if(presion < 1000 and presion > 1020){
-            Serial.println("Presion en Rango de Alerta, clima inestable");
-            bmp_estado = true;
-        }
+        return ahora.timestamp(DateTime::TIMESTAMP_FULL);   
     }
 
     Nivel nivelGas() {
-        if (valorAnalogico >= UMBRAL_ALERTA || estadoDigital == LOW) return Nivel::PELIGRO;
-        if (valorAnalogico >= UMBRAL_ADVERTENCIA) return Nivel::ADVERTENCIA;
+        if (valorAnalogico >= UMBRAL_ALERTA) return Nivel::PELIGRO;
+
+        if (valorAnalogico >= UMBRAL_ADVERTENCIA && valorAnalogico < UMBRAL_ALERTA) return Nivel::ADVERTENCIA;
+
         return Nivel::NORMAL;
     }
 
     Nivel nivelDHT() {
-       if (isnan(temperatura) || isnan(humedad)) return Nivel::NORMAL;
         if (temperatura > 35 || temperatura < 5)  return Nivel::PELIGRO;
+
         if (temperatura > 30 || temperatura < 10 ||
             humedad > 70 || humedad < 30)         return Nivel::ADVERTENCIA;
+
         return Nivel::NORMAL;
     }
 
-    Nivel nivelBMP() {
-        if (presion <= 0) return Nivel::NORMAL;             // sensor caído
-        if (presion < 980 || presion > 1040) return Nivel::PELIGRO;
-        if (presion < 1000 || presion > 1020) return Nivel::ADVERTENCIA;
-        return Nivel::NORMAL;
+    Nivel nivelBMP() { 
+        if (presion < 980 || presion > 1040) {
+            return Nivel::PELIGRO; 
+        }
+        if (presion < 1000 || presion > 1020) {
+            return Nivel::ADVERTENCIA; 
+        }
+
+        return Nivel::NORMAL; 
     }
 
     Nivel nivelGlobal() {
-        return (Nivel)max(nivelGas(), max(nivelDHT(), nivelBMP()));
+        int max_alerta = max((int)nivelGas(), max((int)nivelDHT(), (int)nivelBMP()));
+        return (Nivel)max_alerta;
     }
+
 private:
     float temperatura;
     float humedad;
     float presion;
     float valorAnalogico;
-    bool mq, dht, bmp_estado, encendido, estadoDigital, estadoSd, estadoRtc;
+    bool encendido, estadoDigital, estadoSd, estadoRtc;
 
     DHT dht22;
     Adafruit_BMP280 bmp; // I2C

@@ -11,6 +11,12 @@
 unsigned long lastMsg = 0;
 const unsigned long INTERVALO = 30000;
 
+
+unsigned long tiempoAlerta = 0;   // Guarda el momento exacto en que inició el peligro
+bool alarmaActiva = false;        // Estado interno para saber si el buzzer ya sonó
+const unsigned long DURACION_BUZZER = 3000; // Tiempo en milisegundos (3 segundos)
+
+
 //Variables globales para leer sensoresy controlar leds
 const unsigned long INTERVALO_LECTURA = 2000;
 unsigned long lastRead = 0;
@@ -61,9 +67,7 @@ void loop() {
     reconectarMQTT();
   }
   client.loop();
-
   if (sensores == nullptr) return;
-  digitalWrite(LED_AZUL_PIN, HIGH);
   unsigned long ahora = millis();
 
   // Lectura + semaforo cada 2 seg
@@ -102,11 +106,37 @@ void loop() {
 }
 
 void conectarWiFi() {
-  Serial.print("Conectando a Wi-Fi");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  bool conectado = false; // Corregido: inicializar la variable
+  
+  for(int i = 0; i < cantRedes; i++){
+    Serial.print("Intentando conectar a: ");
+    Serial.println(BancoRedes[i].ssid);
+    
+    WiFi.begin(BancoRedes[i].ssid, BancoRedes[i].password);
+    int intentos = 0;
+    
+    // Corregido: WiFi.status() estaba mal escrito como WiFi.sttus()
+    while(WiFi.status() != WL_CONNECTED && intentos < 20){ 
+      delay(500);
+      Serial.print(".");
+      intentos++;
+    }
+    
+    if(WiFi.status() == WL_CONNECTED){
+      Serial.println("\nConexion exitosa"); // Corregido: "exiotsa" -> "exitosa"
+      Serial.print("IP asignada: ");
+      Serial.println(WiFi.localIP());
+      conectado = true;
+      break;
+    } else {
+      Serial.println("\nNo se pudo conectar"); // Corregido el salto de línea
+      WiFi.disconnect();
+      delay(500);
+    }
+  }
+  
+  if(!conectado){
+    Serial.println("\n[ERROR] No se pudo conectar a ningun wifi almacenado");
   }
 }
 
@@ -199,10 +229,44 @@ void leerMensajesGuardados() {
 }
 
 void controlarLEDs() {
-  Nivel n = sensores->nivelGlobal();
+    Nivel nivelActual = sensores->nivelGlobal();
+    unsigned long tiempoActual = millis();
+    if (WiFi.status() == WL_CONNECTED) {
+        digitalWrite(LED_AZUL_PIN, HIGH); // Encendido si hay Wi-Fi
+    } else {
+        digitalWrite(LED_AZUL_PIN, LOW);  // Apagado si se pierde la conexión
+    }
 
-  digitalWrite(LED_VERDE_PIN,    n == Nivel::NORMAL);
-  digitalWrite(LED_AMARILLO_PIN, n == Nivel::ADVERTENCIA);
-  digitalWrite(LED_ROJO_PIN,     n == Nivel::PELIGRO);
-  digitalWrite(BUZZER_PIN,       n == Nivel::PELIGRO);
+    if (nivelActual == Nivel::PELIGRO) {
+        digitalWrite(LED_ROJO_PIN, HIGH);
+        digitalWrite(LED_AMARILLO_PIN, LOW);
+        digitalWrite(LED_VERDE_PIN, LOW);
+
+        if (!alarmaActiva) {
+            tiempoAlerta = tiempoActual;
+            alarmaActiva = true;
+        }
+
+        if (tiempoActual - tiempoAlerta < DURACION_BUZZER) { 
+            bool estadoBuzzer = (tiempoActual / 250) % 2 == 0;
+            digitalWrite(BUZZER_PIN, estadoBuzzer);
+        } 
+        else {
+            digitalWrite(BUZZER_PIN, LOW);
+        }
+    } 
+    else {
+        alarmaActiva = false; 
+        digitalWrite(BUZZER_PIN, LOW);
+        digitalWrite(LED_ROJO_PIN, LOW);
+
+        if (nivelActual == Nivel::ADVERTENCIA) {
+            digitalWrite(LED_AMARILLO_PIN, HIGH);
+            digitalWrite(LED_VERDE_PIN, LOW);
+        } 
+        else { // Nivel::NORMAL
+            digitalWrite(LED_AMARILLO_PIN, LOW);
+            digitalWrite(LED_VERDE_PIN, HIGH);
+        }
+    }
 }

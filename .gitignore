@@ -28,6 +28,8 @@ firmware/.env
 *.env
 *.env.local
 *.env.production
+.streamlit/secrets.toml
+
 
 # PYTHON (backend)
 __pycache__/

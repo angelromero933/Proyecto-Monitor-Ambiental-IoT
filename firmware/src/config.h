@@ -2,9 +2,18 @@
 #define CONFIG_H
 
 const char* filename = "/datos.txt";    //ubicacion de backup sd card
-//wifi
-static const char* const ssid = "WIFI";
-static const char* const password = "";
+struct Redes {
+  const char* ssid;
+  const char* password;
+} BancoRedes[] = {
+  { "Fibertel WiFi014 2.4GHz", "01420822666" },
+  { "Redmi Note 14S", "angelangel" },
+  { "Maestros", "educar_2018" },
+  { "Estudiantes", "educar_2018" },
+  { "Wokwi-GUEST", "" }
+};
+
+const int cantRedes = sizeof(BancoRedes)/sizeof(BancoRedes[0]);
 
 //mqtt hivemq
 static const char* const mqttServer = "6a27f69ee3d5461f8991096bdfcaaf3c.s1.eu.hivemq.cloud";
@@ -13,15 +22,15 @@ static const char* const mqtt_user = "adminhive";
 static const char* const mqtt_password = "adminhive";
 static const char* const mqtt_topic = "sensores/esp32/datos";
 
-String creator = "86d8ce35-705a-4413-9791-9192e5470a76"; //tipo credencial para q SP acepte la entrada
+const String creator = "86d8ce35-705a-4413-9791-9192e5470a76"; //tipo credencial para q SP acepte la entrada
 
 #define DHT_PIN 15            // DHT22 GPIO15
 
 #define GAS_PIN 34            // ADC MQ-135(solo entrada) GPIO34
 #define MQ135_DOUT_PIN 4      // DOUT a GPIO4 para alarma digital(HIGH o LOW) es digital, solo indica si hay gas o no, no da valor de ppm 
 
-const int UMBRAL_ADVERTENCIA = 250; 
-const int UMBRAL_ALERTA = 600;
+const int UMBRAL_ADVERTENCIA = 350; 
+const int UMBRAL_ALERTA = 900;
 
 #define SDA_PIN 21            // SDA GPIO21 (i2c)
 #define SCL_PIN 22            // SCL GPIO22 (i2c)

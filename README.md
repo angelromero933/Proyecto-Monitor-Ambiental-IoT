@@ -4,21 +4,19 @@ Proyecto académico para Prácticas Profesionalizantes - Instituto Superior N° 
 
 ## 📋 Descripción
 Sistema IoT que mide: temperatura, humedad, presión atmosférica y calidad del aire en espacios interiores.
-Los datos se transmiten por _MQTT_, se almacenan en _SQLite_ y se visualizan en un _dashboard web_.
+Los datos se transmiten por _MQTT_, se almacenan en _Supabase_ y se visualizan en un dashboard web en _Streamlit_.
 
 ## 🏗️ Estructura del repositorio
 - `/firmware`: Código del ESP32 (PlatformIO)
-- `/backend`: API REST en Python + FastAPI
-- `/frontend`: Dashboard web (HTML + Chart.js)
+- `/dashboard`: En Python con Streamlit(HMTL + CSS)
 - `/docs`: Documentación y diagramas
 - `/simulacion`: Proyecto de Wokwi
 
 ## 🚀 Tecnologías
 - ESP32 (C++, PlatformIO)
-- Mosquitto (MQTT)
-- Python + FastAPI
-- SQLite
-- HTML + Chart.js
+- Python
+- Supabase
+- HTML + CSS
 - Git + GitHub
 
 ## 👥 Equipo
@@ -29,4 +27,4 @@ Los datos se transmiten por _MQTT_, se almacenan en _SQLite_ y se visualizan en 
 - Romero, Ángel
 
 ## 📅 Estado
-Proyecto en desarrollo - Versión 0.1
+Proyecto en desarrollo - Versión 1.1
